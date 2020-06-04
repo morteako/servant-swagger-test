@@ -141,17 +141,11 @@ type API =
 
 -- To test nested case
 type API' = API
-    :<|> "nested" :> API
     :<|> SwaggerSchemaUI' "foo-ui" ("foo" :> "swagger.json" :> Get '[JSON] Swagger)
 
 -- Implementation
 
 -- | We test different ways to nest API, so we have an enumeration
-data Variant
-    = Normal
-    | Nested
-    | SpecDown
-    deriving (Eq)
 
 data UIFlavour
     = Original
@@ -159,18 +153,19 @@ data UIFlavour
     | ReDoc
     deriving (Eq)
 
+
+
 server' :: UIFlavour -> Server API'
-server' uiFlavour = server Normal
-    :<|> server Nested
-    :<|> schemaUiServer (swaggerDoc' SpecDown)
+server' uiFlavour = server
+    :<|> schemaUiServer swaggerDoc
   where
-    server :: Variant -> Server API
-    server variant =
-        schemaUiServer (swaggerDoc' variant)
+    server :: Server API
+    server =
+        schemaUiServer swaggerDoc
         :<|> (return "Hello World" :<|> catEndpoint' :<|> catEndpoint :<|> catEndpoint :<|> return)
       where
-        catEndpoint' n _ _ = return $ Cat n (variant == Normal)
-        catEndpoint  n     = return $ Cat n (variant == Normal)
+        catEndpoint' n _ _ = return $ Cat n True
+        catEndpoint  n     = return $ Cat n True
         -- Unfortunately we have to specify the basePath manually atm.
 
     schemaUiServer
@@ -181,12 +176,7 @@ server' uiFlavour = server Normal
         JensOleG -> jensolegSwaggerSchemaUIServer
         ReDoc    -> redocSchemaUIServer
 
-    swaggerDoc' Normal    = swaggerDoc
-    swaggerDoc' Nested    = swaggerDoc
-        & basePath ?~ "/nested"
-        & info.description ?~ "Nested API"
-    swaggerDoc' SpecDown  = swaggerDoc
-        & info.description ?~ "Spec nested"
+
 
 -- Boilerplate
 
