@@ -147,34 +147,23 @@ type API' = API
 
 -- | We test different ways to nest API, so we have an enumeration
 
-data UIFlavour
-    = Original
-    | JensOleG
-    | ReDoc
-    deriving (Eq)
 
 
 
-server' :: UIFlavour -> Server API'
-server' uiFlavour = server
-    :<|> schemaUiServer swaggerDoc
+server' :: Server API'
+server' = server
+    :<|> swaggerSchemaUIServer swaggerDoc
   where
     server :: Server API
     server =
-        schemaUiServer swaggerDoc
+        swaggerSchemaUIServer swaggerDoc
         :<|> (return "Hello World" :<|> catEndpoint' :<|> catEndpoint :<|> catEndpoint :<|> return)
       where
         catEndpoint' n _ _ = return $ Cat n True
         catEndpoint  n     = return $ Cat n True
         -- Unfortunately we have to specify the basePath manually atm.
 
-    schemaUiServer
-        :: (Server api ~ Handler Swagger)
-        => Swagger -> Server (SwaggerSchemaUI' dir api)
-    schemaUiServer = case uiFlavour of
-        Original -> swaggerSchemaUIServer
-        JensOleG -> jensolegSwaggerSchemaUIServer
-        ReDoc    -> redocSchemaUIServer
+
 
 
 
@@ -189,15 +178,12 @@ swaggerDoc = toSwagger (Proxy :: Proxy BasicAPI)
 api :: Proxy API'
 api = Proxy
 
-app :: UIFlavour -> Application
-app = serve api . server'
+app :: Application
+app = serve api $ server'
 
 main :: IO ()
 main = do
     args <- getArgs
-    let uiFlavour | "jensoleg" `elem` args = JensOleG
-                  | "redoc"    `elem` args = ReDoc
-                  | otherwise              = Original
     p <- fromMaybe 8000 . (>>= readMaybe) <$> lookupEnv "PORT"
     putStrLn $ "http://localhost:" ++ show p ++ "/"
-    Warp.run p (app uiFlavour)
+    Warp.run p app
